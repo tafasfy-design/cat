@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>黑猫的呢喃</title>
+    
+    <!-- 1. 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 2. 引入字体 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- 4. 引入 html2canvas -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <!-- 3. Tailwind 配置和自定义 CSS -->
+    <style>
+        /* 3.1. 定义颜色和字体变量 */
+        :root {
+            --color-obsidian: #121212;
+            --color-midnight-blue: #0A0A1A;
+            --color-deep-purple: #4A2A6C;
+            --color-moonlight-silver: #E0E0E0;
+            --color-cats-eye-gold: #FFD700;
+            --color-sorcery-green: #00FF88;
+        }
+
+        /* 3.2. Tailwind 扩展 */
+        /* Tailwind JIT (Just-In-Time) 模式在 CDN 版本中默认开启，
+        允许我们使用任意值，如 bg-[--color-obsidian]。
+        但为了方便，我们还是在这里定义一些基础样式。
+        */
+        body {
+            background-color: var(--color-obsidian);
+            color: var(--color-moonlight-silver);
+            font-family: 'Noto Sans SC', sans-serif;
+            overflow-x: hidden; /* 防止水平滚动 */
+            cursor: default; /* 稍后 JS 可能会修改 */
+        }
+        
+        .font-serif {
+            font-family: 'Playfair Display', serif;
+        }
+
+        /* 3.3. 流动的以太 (星云) 背景 */
+        #aether-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -2;
+            background: linear-gradient(
+                45deg,
+                var(--color-midnight-blue) 0%,
+                var(--color-deep-purple) 30%,
+                var(--color-midnight-blue) 70%,
+                #05050D 100%
+            );
+            background-size: 200% 200%;
+            animation: flow 20s linear infinite;
+        }
+
+        @keyframes flow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* 3.4. 魔法尘埃 (微动画) */
+        #dust-particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background-image:
+                radial-gradient(circle at 10% 20%, rgba(224, 224, 224, 0.1) 0px, transparent 1px),
+                radial-gradient(circle at 80% 30%, rgba(255, 215, 0, 0.1) 0px, transparent 1px),
+                radial-gradient(circle at 30% 90%, rgba(224, 224, 224, 0.05) 0px, transparent 1px),
+                radial-gradient(circle at 50% 50%, rgba(0, 255, 136, 0.05) 0px, transparent 1px);
+            background-size: 100px 100px;
+            animation: drift 60s linear infinite;
+        }
+
+        @keyframes drift {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(100px, 100px); }
+        }
+
+        /* 3.5. 猫眼跟随 */
+        #cat-eyes-follow {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 80px;
+            height: 30px;
+            z-index: 999;
+            pointer-events: none; /* 穿透点击 */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .cat-eye {
+            width: 30px;
+            height: 30px;
+            background: var(--color-cats-eye-gold);
+            border-radius: 50%;
+            overflow: hidden;
+            position: relative;
+            /* 制造猫眼形状 */
+            border-top: 3px solid var(--color-obsidian);
+            border-bottom: 3px solid var(--color-obsidian);
+            transform: rotate(-10deg);
+        }
+
+        .cat-pupil {
+            width: 8px; /* 瞳孔大小 */
+            height: 100%;
+            background: var(--color-obsidian);
+            position: absolute;
+            left: 50%;
+            top: 0;
+            transform: translateX(-50%);
+            transition: transform 0.1s linear; /* 保持平滑跟随 */
+        }
+        
+        /* 3.6. 仪式环节 (Stages) 控制 */
+        .stage-container {
+            width: 100%;
+            min-height: 100vh; /* 使用 min-height 以便在小屏上滚动 */
+            height: 100%; /* 适配移动端，确保占满全屏 */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            transition: opacity 1.5s ease-in-out;
+            pointer-events: none;
+            z-index: 1;
+            overflow-y: auto; /* 允许内容在小屏上滚动 */
+        }
+        
+        .stage-active {
+            opacity: 1;
+            pointer-events: auto;
+            z-index: 10;
+        }
+
+        /* 3.7. 自定义按钮 */
+        .btn-primary {
+            font-family: 'Playfair Display', serif;
+            background: transparent;
+            border: 2px solid var(--color-cats-eye-gold);
+            color: var(--color-cats-eye-gold);
+            padding: 0.75rem 2rem;
+            border-radius: 999px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            background: var(--color-cats-eye-gold);
+            color: var(--color-obsidian);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+        }
+
+        /* 3.8. 环节 1: 魔法阵与输入 */
+        #covenant-circle {
+            animation: rotate 60s linear infinite;
+        }
+
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .mortal-input {
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid var(--color-moonlight-silver);
+            color: var(--color-moonlight-silver);
+            font-size: 1.5rem;
+            text-align: center;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        .mortal-input:focus {
+            border-bottom-color: var(--color-cats-eye-gold);
+        }
+
+        /* 星辰印记 (星座) */
+        .constellation-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+        @media (min-width: 640px) {
+            .constellation-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+        @media (min-width: 1024px) {
+            .constellation-grid {
+                grid-template-columns: repeat(6, 1fr);
+            }
+        }
+
+        .constellation-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        .constellation-item:hover {
+            transform: scale(1.1);
+            color: var(--color-cats-eye-gold);
+        }
+        .constellation-item.selected {
+            border-color: var(--color-cats-eye-gold);
+            background: rgba(255, 215, 0, 0.1);
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
+        .constellation-item svg {
+            width: 40px;
+            height: 40px;
+            stroke: currentColor;
+            stroke-width: 1.5;
+            fill: none;
+        }
+
+        /* 3.9. 环节 2: 占卜镜 (水面) */
+        #water-mirror-container {
+            position: relative;
+            width: 90%;
+            max-width: 600px;
+            height: 200px;
+            background: #000;
+            border-radius: 1rem;
+            border: 2px solid var(--color-deep-purple);
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(74, 42, 108, 0.5);
+        }
+        
+        /* 倒影 */
+        #water-mirror-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                180deg,
+                rgba(10, 10, 26, 0) 0%,
+                rgba(10, 10, 26, 0.5) 70%,
+                rgba(74, 42, 108, 0.3) 100%
+            );
+            opacity: 0.6;
+            z-index: 1;
+        }
+        
+        #whisper-input {
+            width: 100%;
+            height: 100%;
+            padding: 1rem;
+            background: transparent;
+            border: none;
+            outline: none;
+            resize: none;
+            color: transparent; /* 文字融化了 */
+            caret-color: var(--color-cats-eye-gold); /* 光标可见 */
+            font-size: 1.2rem;
+            z-index: 2;
+            position: relative;
+        }
+
+        /* 水波纹动画 */
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            border: 1px solid var(--color-moonlight-silver);
+            animation: ripple-effect 1s forwards;
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        @keyframes ripple-effect {
+            0% {
+                transform: scale(0);
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(3);
+                opacity: 0;
+            }
+        }
+
+        /* 3.10. 环节 3: 抽牌 */
+        #velvet-bag {
+            width: 200px;
+            height: 250px;
+            background: var(--color-deep-purple);
+            border-radius: 50% 50% 20% 20% / 60% 60% 40% 40%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 -10px 20px rgba(0,0,0,0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #velvet-bag:hover {
+            transform: scale(1.05);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.7), inset 0 -10px 20px rgba(0,0,0,0.3);
+        }
+        
+        /* 袋子上的符文 (示意) */
+        #velvet-bag::before {
+            content: '✧';
+            font-size: 3rem;
+            color: var(--color-cats-eye-gold);
+            opacity: 0.7;
+            text-shadow: 0 0 10px var(--color-cats-eye-gold);
+            animation: pulse 3s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.7; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.1); }
+        }
+
+        /* 3.11. 环节 4: 启示 */
+        #rune-image-container {
+            width: 150px;
+            height: 150px;
+            border: 2px solid var(--color-moonlight-silver);
+            border-radius: 0.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            background: rgba(0,0,0,0.2);
+        }
+        #rune-image-container svg {
+            width: 100px;
+            height: 100px;
+            stroke: var(--color-cats-eye-gold);
+            stroke-width: 2;
+            fill: none;
+            animation: draw-rune 2s ease-out forwards;
+        }
+
+        /* 符文绘制动画 (简化) */
+        @keyframes draw-rune {
+            0% {
+                opacity: 0;
+                stroke-dasharray: 1000;
+                stroke-dashoffset: 1000;
+            }
+            100% {
+                opacity: 1;
+                stroke-dasharray: 1000;
+                stroke-dashoffset: 0;
+            }
+        }
+        
+        #rune-keywords {
+            font-size: 1.1rem;
+            color: var(--color-cats-eye-gold);
+            letter-spacing: 0.1em;
+            margin-top: 0.5rem;
+            opacity: 0;
+            animation: fade-in 1s 1.5s forwards; /* 延迟出现 */
+        }
+        
+        #rune-revelation-text {
+            max-width: 600px;
+            font-size: 1.2rem;
+            line-height: 1.8;
+            margin-top: 1.5rem;
+            opacity: 0;
+            animation: fade-in 1s 2s forwards; /* 延迟出现 */
+        }
+
+        @keyframes fade-in {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 打字机效果 (由 JS 驱动，这里预留样式) */
+        .typewriter-cursor {
+            border-right: 3px solid var(--color-moonlight-silver);
+            animation: blink 1s step-end infinite;
+        }
+
+        @keyframes blink {
+            from, to { border-color: transparent; }
+            50% { border-color: var(--color-moonlight-silver); }
+        }
+
+        /* 3.13. 启示符 (Talisman) 样式 */
+        #talisman-container {
+            /* 为了 html2canvas 能正确渲染，我们不能用 display: none.
+              我们将其定位在屏幕外.
+            */
+            position: absolute;
+            left: -9999px;
+            top: 0;
+            width: 420px; /* 固定宽度以保证图片一致性 */
+            background-color: var(--color-midnight-blue);
+            border: 2px solid var(--color-cats-eye-gold);
+            color: var(--color-moonlight-silver);
+            padding: 2rem;
+            z-index: 200;
+        }
+
+        #talisman-seal {
+            width: 80px;
+            height: 80px;
+            border: 2px solid var(--color-cats-eye-gold);
+            background: rgba(255, 215, 0, 0.1);
+            color: var(--color-cats-eye-gold);
+            font-family: 'Playfair Display', serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2rem;
+            line-height: 1.5;
+            transform: rotate(-5deg); /* 增加一点手作感 */
+        }
+
+
+        /* 3.12. 环节 0: 初始凝视 */
+        #stage-0-splash {
+            background: #000; /* 纯黑的猫 */
+            cursor: pointer;
+        }
+        
+        #splash-eyes-container {
+            display: flex;
+            gap: 2rem;
+            position: relative;
+        }
+
+        .splash-eye {
+            width: 120px;
+            height: 120px;
+            background: var(--color-cats-eye-gold);
+            border-radius: 50%;
+            overflow: hidden;
+            position: relative;
+            animation: shimmer 4s infinite ease-in-out;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        @keyframes shimmer {
+            0%, 100% {
+                box-shadow: 0 0 15px var(--color-cats-eye-gold);
+                opacity: 0.8;
+                transform: scale(1);
+            }
+            50% {
+                box-shadow: 0 0 40px var(--color-cats-eye-gold);
+                opacity: 1;
+                transform: scale(1.02);
+            }
+        }
+
+        .splash-pupil {
+            width: 18px; /* 竖瞳 */
+            height: 100%;
+            background: var(--color-obsidian);
+            position: absolute;
+            left: 50%;
+            top: 0;
+            transform: translateX(-50%);
+            transition: transform 0.1s linear;
+        }
+
+        #splash-prompt {
+            color: var(--color-moonlight-silver);
+            font-family: 'Playfair Display', serif;
+            margin-top: 3rem;
+            font-size: 1.2rem;
+            opacity: 0.5;
+            animation: pulse 3s infinite;
+        }
+
+    </style>
+</head>
+<body class="bg-[--color-obsidian] text-[--color-moonlight-silver] font-sans overflow-x-hidden overflow-y-auto">
+
+    <!-- 动态背景 -->
+    <div id="aether-background"></div>
+    <div id="dust-particles"></div>
+
+    <!-- 猫眼跟随 -->
+    <div id="cat-eyes-follow">
+        <div class="cat-eye">
+            <div class="cat-pupil" id="pupil-left"></div>
+        </div>
+        <div class="cat-eye">
+            <div class="cat-pupil" id="pupil-right"></div>
+        </div>
+    </div>
+
+    <!-- 主容器 -->
+    <main class="relative w-full min-h-screen">
+
+        <!-- 环节零：【黑猫的凝视】 -->
+        <section id="stage-0-splash" class="stage-container stage-active space-y-8">
+            <div id="splash-eyes-container">
+                <div class="splash-eye">
+                    <div class="splash-pupil" id="splash-pupil-left"></div>
+                </div>
+                <div class="splash-eye">
+                    <div class="splash-pupil" id="splash-pupil-right"></div>
+                </div>
+            </div>
+            <p id="splash-prompt">点击阴影以继续...</p>
+        </section>
+
+        <!-- 环节一：【月影下的盟约】 -->
+        <section id="stage-1-covenant" class="stage-container space-y-8">
+            <div class="absolute inset-0 flex items-center justify-center opacity-10 z-0">
+                <!-- 魔法阵 SVG -->
+                <svg id="covenant-circle" width="80%" height="80%" viewBox="0 0 200 200" class="max-w-xl max-h-xl">
+                    <defs>
+                        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                            <feMerge>
+                                <feMergeNode in="coloredBlur"/>
+                                <feMergeNode in="SourceGraphic"/>
+                            </feMerge>
+                        </filter>
+                    </defs>
+                    <circle cx="100" cy="100" r="90" stroke="var(--color-moonlight-silver)" stroke-width="0.5" fill="none" opacity="0.5" />
+                    <circle cx="100" cy="100" r="70" stroke="var(--color-moonlight-silver)" stroke-width="0.5" fill="none" opacity="0.5" />
+                    <circle cx="100" cy="100" r="68" stroke="var(--color-moonlight-silver)" stroke-width="1" fill="none" opacity="0.7" />
+                    <!-- 星星 -->
+                    <polygon points="100,10 105,30 125,30 110,45 115,65 100,55 85,65 90,45 75,30 95,30" fill="none" stroke="var(--color-moonlight-silver)" stroke-width="1" opacity="0.8" filter="url(#glow)"/>
+                    <polygon points="100,190 105,170 125,170 110,155 115,135 100,145 85,135 90,155 75,170 95,170" fill="none" stroke="var(--color-moonlight-silver)" stroke-width="1" opacity="0.8" transform="rotate(180 100 100)" filter="url(#glow)"/>
+                    <!-- 符文文字 (示意) -->
+                    <text x="100" y="40" fill="var(--color-moonlight-silver)" font-size="10" font-family="serif" text-anchor="middle" opacity="0.6">IGNIS</text>
+                    <text x="100" y="168" fill="var(--color-moonlight-silver)" font-size="10" font-family="serif" text-anchor="middle" opacity="0.6">TERRA</text>
+                    <text x="40" y="103" fill="var(--color-moonlight-silver)" font-size="10" font-family="serif" text-anchor="middle" opacity="0.6">AQUA</text>
+                    <text x="160" y="103" fill="var(--color-moonlight-silver)" font-size="10" font-family="serif" text-anchor="middle" opacity="0.6">AER</text>
+                </svg>
+            </div>
+            
+            <div class="z-10 flex flex-col items-center space-y-8 w-full max-w-2xl">
+                <h1 class="font-serif text-4xl md:text-5xl text-[--color-moonlight-silver] text-shadow-glow">月影下的盟约</h1>
+                <p class="text-lg text-gray-400">在阴影中，我们感知你的存在</p>
+                
+                <div class="w-full space-y-4">
+                    <label for="mortal-name" class="font-serif text-xl">你的凡人代号</label>
+                    <input type="text" id="mortal-name" class="mortal-input w-full md:w-1/2" placeholder="在此显现...">
+                </div>
+
+                <div class="w-full space-y-4">
+                    <p class="font-serif text-xl">你的星辰印记</p>
+                    <p class="text-gray-400">"嘘……你的灵魂在星辰间是如何排列的。"</p>
+                    
+                    <!-- 星座选择器 -->
+                    <div id="constellation-picker" class="constellation-grid w-full">
+                        <!-- JS 动态填充 -->
+                    </div>
+                    <p id="constellation-error" class="text-red-400 hidden">请选择一个印记</p>
+                </div>
+
+                <button id="btn-covenant" class="btn-primary">缔结</button>
+            </div>
+        </section>
+
+        <!-- 环节二：【向虚空低语】 -->
+        <section id="stage-2-whisper" class="stage-container space-y-8">
+            <h1 class="font-serif text-4xl md:text-5xl">向虚空低语</h1>
+            <p class="text-lg text-gray-400 max-w-md">"说出你的困惑。这面镜子会将其传递给阴影。但记住，一次只问一个问题。"</p>
+            
+            <div id="water-mirror-container">
+                <textarea id="whisper-input" placeholder="在此低语..."></textarea>
+            </div>
+            <p id="whisper-error" class="text-red-400 hidden">低语不可为空</p>
+
+            <button id="btn-whisper" class="btn-primary">释放问题</button>
+        </section>
+
+        <!-- 环节三：【猫的符文】 -->
+        <section id="stage-3-draw" class="stage-container space-y-8">
+            <h1 class="font-serif text-4xl md:text-5xl">猫的符文</h1>
+            <p class="text-lg text-gray-400">"伸出手，从混沌中抽取你的命运符文。"</p>
+            
+            <div id="velvet-bag" title="点击抽取">
+            </div>
+        </section>
+
+        <!-- 环节四：【启示降临】 -->
+        <section id="stage-4-revelation" class="stage-container space-y-4">
+            <div id="rune-image-container">
+                <!-- JS 动态填充 SVG -->
+            </div>
+            
+            <h2 id="rune-name" class="font-serif text-4xl text-[--color-cats-eye-gold]"></h2>
+            <p id="rune-keywords" class="font-serif text-xl"></p>
+            
+            <p id="rune-revelation-text" class="text-center"></p>
+            
+            <p class="text-gray-500 italic pt-8">"...这就是我们的回答。自行领悟吧，凡人。"</p>
+            
+            <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 pt-8">
+                <button id="btn-reset" class="btn-primary">再次请求</button>
+                <button id="btn-download" class="btn-primary">保存启示</button>
+                <button id="btn-leave" class="btn-primary">离开阴影</button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 环节五：【启示符模板】 (隐藏, 供 html2canvas 渲染) -->
+    <div id="talisman-container" class="font-sans">
+        <div class="flex flex-col items-center space-y-6">
+            <!-- 1. 顶部徽记 (猫眼) -->
+            <svg width="60" height="60" viewBox="0 0 100 100" class="stroke-[var(--color-cats-eye-gold)] fill-[var(--color-cats-eye-gold)] opacity-80">
+                <circle cx="50" cy="50" r="40" fill="none" stroke-width="3" />
+                <ellipse cx="50" cy="50" rx="15" ry="35" />
+                <circle cx="50" cy="50" r="10" fill="var(--color-midnight-blue)" />
+            </svg>
+
+            <h1 class="font-serif text-2xl text-[--color-moonlight-silver]">黑猫的启示</h1>
+            
+            <hr class="w-full border-[var(--color-deep-purple)] my-4">
+
+            <!-- 2. 个人信息 -->
+            <div class="w-full text-left space-y-2">
+                <p><span class="font-serif text-[--color-cats-eye-gold]">致 凡人：</span> <span id="talisman-name">...</span></p>
+                <p><span class="font-serif text-[--color-cats-eye-gold]">所问之惑：</span> <span id="talisman-question" class="italic">...</span></p>
+            </div>
+
+            <hr class="w-full border-[var(--color-deep-purple)] my-4">
+
+            <!-- 3. 符文结果 -->
+            <div id="talisman-rune-svg" class="w-[100px] h-[100px] my-4">
+                <!-- JS 填充 -->
+            </div>
+            <h2 id="talisman-rune-name" class="font-serif text-3xl text-[--color-cats-eye-gold] text-center">...</h2>
+            <p id="talisman-rune-keywords" class="font-serif text-lg text-[--color-cats-eye-gold] opacity-80 text-center">...</p>
+            <p id="talisman-rune-text" class="text-base text-[--color-moonlight-silver] text-center leading-relaxed">...</p>
+            
+            <hr class="w-full border-[--color-deep-purple)] my-8">
+
+            <!-- 4. 印章 -->
+            <div id="talisman-seal">
+                <span>黑猫</span>
+                <span>之印</span>
+            </div>
+            <p class="text-xs text-gray-500 mt-2">-- 来自以太 --</p>
+        </div>
+    </div>
+
+
+    <script>
+        // 4. 核心 JavaScript 逻辑
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // --- 4.1. 秘符 (Runes) 数据库 ---
+            // (我们在这里使用简单的 SVG 路径作为图像)
+            const runes = [
+                {
+                    id: "slumber",
+                    name: "沉睡之猫",
+                    keywords: "静止、潜能、内省、等待时机",
+                    text: "世界在喧嚣，但你在积蓄力量。现在不是狩猎的时刻，是磨爪的时刻。不要急于行动，在梦境与现实的边缘，答案正在酝酿。",
+                    svg: '<path d="M50 10 C 10 40, 10 60, 50 90 C 90 60, 90 40, 50 10 Z M40 50 C 40 40, 60 40, 60 50 C 60 60, 40 60, 40 50 Z" stroke-linecap="round" stroke-linejoin="round"/>' // 蜷缩的猫 (示意)
+                },
+                {
+                    id: "eye",
+                    name: "凝视之瞳",
+                    keywords: "洞察、专注、机遇、被观察",
+                    text: "你正盯着机遇，机遇也正盯着你。保持警觉，你即将看到真相的裂痕。阴影中并非只有危险，还有被忽视的宝藏。",
+                    svg: '<circle cx="50" cy="50" r="40" /> <ellipse cx="50" cy="50" rx="15" ry="35" fill="var(--color-cats-eye-gold)" /> <circle cx="50" cy="50" r="10" fill="var(--color-obsidian)" />' // 猫眼
+                },
+                {
+                    id: "box",
+                    name: "空盒",
+                    keywords: "舒适区、局限、悖论、安全感",
+                    text: "你以为这是庇护所，但它也可能是牢笼。舒适是暂时的，但盒子之外才是整个世界。你满足于这份狭隘的温暖吗？",
+                    svg: '<rect x="20" y="20" width="60" height="60" /> <line x1="20" y1="20" x2="80" y2="80" /> <line x1="80" y1="20" x2="20" y2="80" />' // 盒子
+                },
+                {
+                    id: "claw",
+                    name: "月下之爪",
+                    keywords: "行动、果决、捍卫、拒绝",
+                    text: "是时候亮出你的态度了。温柔的肉垫下必须藏有锋芒。不要再犹豫，你需要划清界限，无论是为了保护自己，还是为了抓住猎物。",
+                    svg: '<path d="M20 80 Q 30 50, 40 20 M 35 80 Q 45 50, 55 20 M 50 80 Q 60 50, 70 20 M 65 80 Q 75 50, 85 20" />' // 爪痕
+                },
+                {
+                    id: "yarn",
+                    name: "断裂的毛线",
+                    keywords: "失控、玩乐、意外路径、混乱",
+                    text: "你追逐的线断了，但也许这团乱麻才是你真正的游乐场。停止追逐，开始‘玩’。在混乱中，新的规则正在诞生。",
+                    svg: '<path d="M10 50 Q 20 20, 30 50 T 50 50 Q 60 80, 70 50 T 90 50 M 70 50 Q 80 40, 75 30" />' // 乱线
+                },
+                {
+                    id: "moon",
+                    name: "上弦月",
+                    keywords: "新开始、增长、希望、直觉",
+                    text: "黑暗即将退去，新的光芒正在增长。相信你的直觉，它像月光一样指引你穿过黑夜。现在是播种希望与计划的时刻。",
+                    svg: '<path d="M30 10 Q 80 50, 30 90 Q 40 50, 30 10 Z" />' // 月亮
+                }
+            ];
+            
+            // --- 4.2. 星座数据 ---
+            const constellations = [
+                { id: "aries", name: "白羊座", svg: '<path d="M10 50 L 30 50 M 20 50 Q 20 20, 40 20 M 20 50 Q 20 80, 40 80"/>' },
+                { id: "taurus", name: "金牛座", svg: '<circle cx="30" cy="30" r="15"/> <line x1="10" y1="50" x2="50" y2="50"/> <line x1="20" y1="30" x2="20" y2="10"/> <line x1="40" y1="30" x2="40" y2="10"/>' },
+                { id: "gemini", name: "双子座", svg: '<path d="M20 20 L 20 80 M 40 20 L 40 80 M 15 25 L 45 25 M 15 75 L 45 75"/>' },
+                { id: "cancer", name: "巨蟹座", svg: '<path d="M20 30 Q 35 10, 50 30 M 20 50 Q 35 70, 50 50"/>' },
+                { id: "leo", name: "狮子座", svg: '<path d="M20 60 Q 30 20, 50 30 Q 70 40, 60 70 Q 50 60, 20 60 Z"/>' },
+                { id: "virgo", name: "处女座", svg: '<path d="M20 20 L 20 80 M 40 20 L 40 80 M 60 20 L 60 80 L 70 60"/>' },
+                { id: "libra", name: "天秤座", svg: '<path d="M10 60 L 70 60 M 20 50 L 60 50 M 30 50 Q 40 30, 50 50"/>' },
+                { id: "scorpio", name: "天蝎座", svg: '<path d="M20 20 L 20 80 M 40 20 L 40 80 M 60 20 L 60 80 L 70 70 L 80 80"/>' },
+                { id: "sagittarius", name: "射手座", svg: '<path d="M20 80 L 60 40 M 40 40 L 80 40 M 60 20 L 60 60"/>' },
+                { id: "capricorn", name: "摩羯座", svg: '<path d="M20 80 L 30 50 L 50 60 L 70 30 L 80 40"/>' },
+                { id: "aquarius", name: "水瓶座", svg: '<path d="M10 30 L 30 50 L 50 30 L 70 50 L 90 30 M 10 50 L 30 70 L 50 50 L 70 70 L 90 50"/>' },
+                { id: "pisces", name: "双鱼座", svg: '<path d="M20 20 Q 50 40, 20 60 M 40 20 Q 70 40, 40 60 M 30 40 L 50 40"/>' }
+            ];
+
+            // --- 4.3. DOM 元素引用 ---
+            const stages = document.querySelectorAll('.stage-container');
+            const stage0 = document.getElementById('stage-0-splash');
+            const stage1 = document.getElementById('stage-1-covenant');
+            const stage2 = document.getElementById('stage-2-whisper');
+            const stage3 = document.getElementById('stage-3-draw');
+            const stage4 = document.getElementById('stage-4-revelation');
+
+            const btnCovenant = document.getElementById('btn-covenant');
+            const btnWhisper = document.getElementById('btn-whisper');
+            const velvetBag = document.getElementById('velvet-bag');
+            const btnReset = document.getElementById('btn-reset');
+            const btnDownload = document.getElementById('btn-download'); // 新增
+            const btnLeave = document.getElementById('btn-leave');
+
+            const mortalNameInput = document.getElementById('mortal-name');
+            const whisperInput = document.getElementById('whisper-input');
+            const waterMirror = document.getElementById('water-mirror-container');
+            
+            const constellationPicker = document.getElementById('constellation-picker');
+            const constellationError = document.getElementById('constellation-error');
+            const whisperError = document.getElementById('whisper-error');
+
+            const runeImageContainer = document.getElementById('rune-image-container');
+            const runeNameEl = document.getElementById('rune-name');
+            const runeKeywordsEl = document.getElementById('rune-keywords');
+            const runeRevelationTextEl = document.getElementById('rune-revelation-text');
+            
+            // --- 新增：符模板引用 ---
+            const talismanContainer = document.getElementById('talisman-container');
+            const talismanName = document.getElementById('talisman-name');
+            const talismanQuestion = document.getElementById('talisman-question');
+            const talismanRuneSvg = document.getElementById('talisman-rune-svg');
+            const talismanRuneName = document.getElementById('talisman-rune-name');
+            const talismanRuneKeywords = document.getElementById('talisman-rune-keywords');
+            const talismanRuneText = document.getElementById('talisman-rune-text');
+
+            const pupilLeft = document.getElementById('pupil-left');
+            const pupilRight = document.getElementById('pupil-right');
+            
+            const splashPupilLeft = document.getElementById('splash-pupil-left');
+            const splashPupilRight = document.getElementById('splash-pupil-right');
+
+            // --- 4.4. 状态变量 ---
+            let userData = {
+                name: '',
+                constellation: '',
+                question: ''
+            };
+            let currentTypewriterInterval;
+
+            // --- 4.5. 核心功能 ---
+
+            // 切换环节
+            function showStage(stageId) {
+                stages.forEach(stage => {
+                    stage.classList.remove('stage-active');
+                    stage.classList.add('opacity-0');
+                });
+                const activeStage = document.getElementById(stageId);
+                if (activeStage) {
+                    activeStage.classList.add('stage-active');
+                    activeStage.classList.remove('opacity-0');
+                }
+            }
+
+            // 猫眼跟随
+            function initEyeFollow() {
+                document.body.addEventListener('mousemove', (e) => {
+                    const { clientX, clientY } = e;
+                    const { innerWidth, innerHeight } = window;
+                    
+                    // 计算鼠标相对于屏幕中心的百分比 (-1 到 1)
+                    const xPercent = (clientX / innerWidth - 0.5) * 2;
+                    const yPercent = (clientY / innerHeight - 0.5) * 2;
+
+                    // 1. 右下角的小猫眼
+                    const maxMoveX = 7;
+                    const maxMoveY = 5;
+                    const pupilX = xPercent * maxMoveX;
+                    const pupilY = yPercent * maxMoveY;
+                    const transformStyleSmall = `translate(${pupilX}px, ${pupilY}px)`;
+                    
+                    if (pupilLeft && pupilRight) {
+                        pupilLeft.style.transform = transformStyleSmall;
+                        pupilRight.style.transform = transformStyleSmall;
+                    }
+
+                    // 2. 初始界面的大猫眼
+                    const maxMoveSplashX = 35; // 更大的移动范围
+                    const maxMoveSplashY = 25;
+                    const pupilSplashX = xPercent * maxMoveSplashX;
+                    const pupilSplashY = yPercent * maxMoveSplashY;
+                    const transformStyleBig = `translate(${pupilSplashX}px, ${pupilSplashY}px)`;
+
+                    if (splashPupilLeft && splashPupilRight) {
+                        splashPupilLeft.style.transform = transformStyleBig;
+                        splashPupilRight.style.transform = transformStyleBig;
+                    }
+                });
+            }
+            
+            // 环节 1: 填充星座
+            function initConstellationPicker() {
+                constellations.forEach(c => {
+                    const item = document.createElement('div');
+                    item.className = 'constellation-item';
+                    item.dataset.id = c.id;
+                    item.innerHTML = `
+                        <svg viewBox="0 0 60 60">${c.svg.replace('<path', '<path stroke="currentColor" fill="none" stroke-width="2"')}</svg>
+                        <span class="text-sm mt-2">${c.name}</span>
+                    `;
+                    item.addEventListener('click', () => {
+                        // 移除所有已选
+                        document.querySelectorAll('.constellation-item').forEach(el => el.classList.remove('selected'));
+                        // 添加选中
+                        item.classList.add('selected');
+                        userData.constellation = c.id;
+                        constellationError.classList.add('hidden');
+                    });
+                    constellationPicker.appendChild(item);
+                });
+            }
+            
+            // 环节 2: 水波纹
+            function initStage2Ripples() {
+                whisperInput.addEventListener('input', (e) => {
+                    // 创建波纹
+                    const ripple = document.createElement('span');
+                    ripple.className = 'ripple';
+                    
+                    // 随机位置
+                    const x = Math.random() * 100;
+                    const y = Math.random() * 100;
+                    
+                    ripple.style.left = `${x}%`;
+                    ripple.style.top = `${y}%`;
+                    
+                    waterMirror.appendChild(ripple);
+                    
+                    // 动画结束后移除
+                    setTimeout(() => {
+                        ripple.remove();
+                    }, 1000);
+                    
+                    userData.question = whisperInput.value;
+                    if(userData.question) {
+                        whisperError.classList.add('hidden');
+                    }
+                });
+            }
+
+            // 环节 4: 打字机效果
+            function typewriterEffect(text, element) {
+                if (currentTypewriterInterval) {
+                    clearInterval(currentTypewriterInterval);
+                }
+                
+                element.innerHTML = ''; // 清空
+                let i = 0;
+                element.classList.add('typewriter-cursor'); // 显示光标
+
+                currentTypewriterInterval = setInterval(() => {
+                    if (i < text.length) {
+                        element.innerHTML = text.substring(0, i + 1) + '<span class="typewriter-cursor"></span>';
+                        i++;
+                    } else {
+                        clearInterval(currentTypewriterInterval);
+                        currentTypewriterInterval = null;
+                        element.innerHTML = text; // 移除光标
+                    }
+                }, 70); // 打字速度
+            }
+
+            // 环节 4: 显示启示
+            function displayRevelation() {
+                // 1. 随机抽取
+                const chosenRune = runes[Math.floor(Math.random() * runes.length)];
+                
+                // 2. 清空旧内容 (重置动画)
+                runeImageContainer.innerHTML = '';
+                runeNameEl.textContent = '';
+                runeKeywordsEl.textContent = '';
+                runeRevelationTextEl.textContent = '';
+                runeKeywordsEl.style.opacity = 0;
+                runeRevelationTextEl.style.opacity = 0;
+
+                // 3. 填充符文图像
+                const svgEl = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                svgEl.setAttribute("viewBox", "0 0 100 100");
+                svgEl.innerHTML = chosenRune.svg;
+                runeImageContainer.appendChild(svgEl);
+
+                // 4. 填充名字和关键词 (利用动画)
+                runeNameEl.textContent = chosenRune.name;
+                runeKeywordsEl.textContent = chosenRune.keywords;
+                
+                // 5. 触发打字机
+                // 需要稍作延迟，等待 fade-in 动画开始
+                setTimeout(() => {
+                    typewriterEffect(chosenRune.text, runeRevelationTextEl);
+                }, 2000); // 必须晚于 CSS 动画中的 2s
+                
+                // --- 新增：填充符模板 ---
+                talismanName.textContent = userData.name || '一位匿名的凡人';
+                talismanQuestion.textContent = userData.question || '一个未言明的困惑';
+                
+                // 复制 SVG (需要一个新的 SVG 元素，不能用同一个)
+                const svgElTalisman = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                svgElTalisman.setAttribute("viewBox", "0 0 100 100");
+                svgElTalisman.innerHTML = chosenRune.svg;
+                svgElTalisman.style.stroke = "var(--color-cats-eye-gold)";
+                svgElTalisman.style.strokeWidth = "2";
+                svgElTalisman.style.fill = "none";
+                talismanRuneSvg.innerHTML = ''; // 清空
+                talismanRuneSvg.appendChild(svgElTalisman);
+
+                talismanRuneName.textContent = chosenRune.name;
+                talismanRuneKeywords.textContent = chosenRune.keywords;
+                talismanRuneText.textContent = chosenRune.text;
+            }
+            
+            // --- 新增：生成并下载符 ---
+            function generateTalismanImage() {
+                const button = btnDownload;
+                button.textContent = '生成中...';
+                button.disabled = true;
+
+                // html2canvas 选项
+                const options = {
+                    backgroundColor: getComputedStyle(document.body).getPropertyValue('--color-midnight-blue'),
+                    scale: 2, // 提高分辨率
+                    useCORS: true,
+                    logging: false,
+                };
+
+                html2canvas(talismanContainer, options).then(canvas => {
+                    try {
+                        const dataUrl = canvas.toDataURL('image/png');
+                        
+                        // 创建下载链接
+                        const link = document.createElement('a');
+                        link.href = dataUrl;
+                        
+                        // 创建一个安全的文件名
+                        const mortalName = (userData.name || 'mortal').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                        link.download = `revelation_${mortalName}.png`;
+                        
+                        // 触发下载
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+
+                        button.textContent = '保存启示';
+                        button.disabled = false;
+
+                    } catch (err) {
+                        console.error('Error generating image:', err);
+                        button.textContent = '保存失败';
+                        button.disabled = false;
+                    }
+                }).catch(err => {
+                    console.error('html2canvas failed:', err);
+                    button.textContent = '保存失败';
+                    button.disabled = false;
+                });
+            }
+
+            // 重置仪式
+            function resetRitual() {
+                userData = { name: '', constellation: '', question: '' };
+                mortalNameInput.value = '';
+                whisperInput.value = '';
+                document.querySelectorAll('.constellation-item').forEach(el => el.classList.remove('selected'));
+                
+                // 清理环节 4
+                if (currentTypewriterInterval) {
+                    clearInterval(currentTypewriterInterval);
+                }
+                runeImageContainer.innerHTML = '';
+                runeNameEl.textContent = '';
+                runeKeywordsEl.textContent = '';
+                runeRevelationTextEl.textContent = '';
+                
+                // --- 新增：清空符模板 ---
+                talismanName.textContent = '...';
+                talismanQuestion.textContent = '...';
+                talismanRuneSvg.innerHTML = '';
+                talismanRuneName.textContent = '...';
+                talismanRuneKeywords.textContent = '...';
+                talismanRuneText.textContent = '...';
+
+                showStage('stage-1-covenant');
+            }
+
+            // --- 4.6. 事件监听器 ---
+            
+            // 环节 0: 开始
+            stage0.addEventListener('click', () => {
+                showStage('stage-1-covenant');
+            });
+            
+            // 环节 1: 缔结
+            btnCovenant.addEventListener('click', () => {
+                userData.name = mortalNameInput.value;
+                let isValid = true;
+                
+                if (!userData.constellation) {
+                    constellationError.classList.remove('hidden');
+                    isValid = false;
+                }
+                
+                if (isValid) {
+                    // (此处可以添加一个加载/旋转动画)
+                    showStage('stage-2-whisper');
+                }
+            });
+
+            // 环节 2: 释放问题
+            btnWhisper.addEventListener('click', () => {
+                if (!userData.question) {
+                    whisperError.classList.remove('hidden');
+                } else {
+                    // (问题已保存在 userData.question 中)
+                    showStage('stage-3-draw');
+                }
+            });
+
+            // 环节 3: 抽取
+            velvetBag.addEventListener('click', () => {
+                // (添加一个晃动动画?)
+                velvetBag.style.animation = 'pulse 0.5s 2';
+                setTimeout(() => {
+                    displayRevelation();
+                    showStage('stage-4-revelation');
+                    velvetBag.style.animation = 'pulse 3s infinite'; // 恢复
+                }, 1000);
+            });
+            
+            // 环节 4: 重置
+            btnReset.addEventListener('click', resetRitual);
+            
+            // --- 新增：环节 4 下载 ---
+            btnDownload.addEventListener('click', generateTalismanImage);
+
+            btnLeave.addEventListener('click', () => {
+                // 渐隐退出 (这里我们简单重置)
+                // 也可以做一个淡出效果
+                document.body.style.transition = 'opacity 1s';
+                document.body.style.opacity = 0;
+                setTimeout(resetRitual, 1000);
+                setTimeout(() => {
+                    document.body.style.opacity = 1;
+                }, 1100);
+            });
+
+
+            // --- 4.7. 初始化 ---
+            initEyeFollow();
+            initConstellationPicker();
+            initStage2Ripples();
+            showStage('stage-0-splash'); // 确保初始显示
+        });
+    </script>
+</body>
+</html>
